@@ -3,7 +3,7 @@ module aidanwoods.dev/go-paseto
 go 1.18
 
 require (
-	aidanwoods.dev/go-result v0.3.0
+	aidanwoods.dev/go-result v0.3.1
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.33.0
 )
