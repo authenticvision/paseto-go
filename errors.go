@@ -9,7 +9,7 @@ type TokenError struct {
 	e error
 }
 
-func newTokenError(e error) TokenError {
+func newTokenError(e error) error {
 	return TokenError{e}
 }
 
@@ -17,7 +17,7 @@ func (e TokenError) Error() string {
 	return e.e.Error()
 }
 
-func (_ TokenError) Is(e error) bool {
+func (TokenError) Is(e error) bool {
 	_, ok1 := e.(TokenError)
 	_, ok2 := e.(*TokenError)
 	return ok1 || ok2
@@ -25,10 +25,6 @@ func (_ TokenError) Is(e error) bool {
 
 func (e TokenError) Unwrap() error {
 	return e.e
-}
-
-func (e TokenError) wrapWith(msg string) TokenError {
-	return TokenError{fmt.Errorf("%s: %w", msg, e)}
 }
 
 // Any error which is the result of a rule failure (distinct from a TokenError)
@@ -47,7 +43,7 @@ func (e RuleError) Error() string {
 	return e.e.Error()
 }
 
-func (_ RuleError) Is(e error) bool {
+func (RuleError) Is(e error) bool {
 	_, ok1 := e.(RuleError)
 	_, ok2 := e.(*RuleError)
 	return ok1 || ok2
@@ -67,20 +63,20 @@ func errorSeedLength(expected, given int) error {
 	return fmt.Errorf("seed length incorrect (%d), expected %d", given, expected)
 }
 
-func errorMessageParts(given int) TokenError {
+func errorMessageParts(given int) error {
 	return newTokenError(fmt.Errorf("invalid number of message parts in token (%d)", given))
 }
 
-func errorMessageHeader(expected Protocol, givenHeader string) TokenError {
+func errorMessageHeader(expected Protocol, givenHeader string) error {
 	return newTokenError(fmt.Errorf("message header `%s' is not valid, expected `%s'", givenHeader, expected.Header()))
 }
 
-func errorMessageHeaderDecrypt(expected Protocol, givenHeader string) TokenError {
-	return errorMessageHeader(expected, givenHeader).wrapWith("cannot decrypt message")
+func errorMessageHeaderDecrypt(expected Protocol, givenHeader string) error {
+	return fmt.Errorf("cannot decrypt message: %w", errorMessageHeader(expected, givenHeader))
 }
 
-func errorMessageHeaderVerify(expected Protocol, givenHeader string) TokenError {
-	return errorMessageHeader(expected, givenHeader).wrapWith("cannot verify message")
+func errorMessageHeaderVerify(expected Protocol, givenHeader string) error {
+	return fmt.Errorf("cannot verify message: %w", errorMessageHeader(expected, givenHeader))
 }
 
 var unsupportedPasetoVersion = fmt.Errorf("unsupported PASETO version")
@@ -93,6 +89,6 @@ var errorBadMAC = newTokenError(fmt.Errorf("bad message authentication code"))
 
 var errorKeyInvalid = fmt.Errorf("key was not valid")
 
-func errorDecrypt(err error) TokenError {
-	return newTokenError(err).wrapWith("the message could not be decrypted")
+func errorDecrypt(err error) error {
+	return fmt.Errorf("the message could not be decrypted: %w", newTokenError(err))
 }

@@ -6,7 +6,7 @@ import (
 
 	"aidanwoods.dev/go-paseto/internal/encoding"
 	"aidanwoods.dev/go-paseto/internal/random"
-	t "aidanwoods.dev/go-result"
+	"aidanwoods.dev/go-result/option"
 )
 
 // V2AsymmetricPublicKey V2 public public key
@@ -60,7 +60,7 @@ type V2AsymmetricSecretKey struct {
 // Public returns the corresponding public key for a secret key
 func (k V2AsymmetricSecretKey) Public() V2AsymmetricPublicKey {
 	return V2AsymmetricPublicKey{
-		material: t.Cast[ed25519.PublicKey](k.material.Public()).
+		material: option.Cast[ed25519.PublicKey](k.material.Public()).
 			Expect("wrong public key returned"),
 	}
 }
@@ -84,10 +84,12 @@ func (k V2AsymmetricSecretKey) ExportSeedHex() string {
 // cryptography. Don't forget to export the public key for sharing, DO NOT share
 // this secret key.
 func NewV2AsymmetricSecretKey() V2AsymmetricSecretKey {
+	_, priKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		panic(err)
+	}
 	return V2AsymmetricSecretKey{
-		material: t.NewTupleResult(ed25519.GenerateKey(nil)).
-			Expect("CSPRNG should not fail").
-			Second,
+		material: priKey,
 	}
 }
 

@@ -1,6 +1,6 @@
 package paseto
 
-import t "aidanwoods.dev/go-result"
+import "aidanwoods.dev/go-result/result"
 
 type v4PublicPayload struct {
 	message   []byte
@@ -11,11 +11,11 @@ func (p v4PublicPayload) bytes() []byte {
 	return append(p.message, p.signature[:]...)
 }
 
-func newV4PublicPayload(bytes []byte) t.Result[v4PublicPayload] {
+func newV4PublicPayload(bytes []byte) result.Result[v4PublicPayload] {
 	signatureOffset := len(bytes) - 64
 
 	if signatureOffset < 0 {
-		return t.Err[v4PublicPayload](errorPayloadShort)
+		return result.Err[v4PublicPayload](errorPayloadShort)
 	}
 
 	message := make([]byte, len(bytes)-64)
@@ -24,7 +24,7 @@ func newV4PublicPayload(bytes []byte) t.Result[v4PublicPayload] {
 	var signature [64]byte
 	copy(signature[:], bytes[signatureOffset:])
 
-	return t.Ok(v4PublicPayload{message, signature})
+	return result.Ok(v4PublicPayload{message, signature})
 }
 
 type v4LocalPayload struct {
@@ -37,9 +37,9 @@ func (p v4LocalPayload) bytes() []byte {
 	return append(append(p.nonce[:], p.cipherText...), p.tag[:]...)
 }
 
-func newV4LocalPayload(bytes []byte) t.Result[v4LocalPayload] {
+func newV4LocalPayload(bytes []byte) result.Result[v4LocalPayload] {
 	if len(bytes) <= 32+32 {
-		return t.Err[v4LocalPayload](errorPayloadShort)
+		return result.Err[v4LocalPayload](errorPayloadShort)
 	}
 
 	macOffset := len(bytes) - 32
@@ -53,5 +53,5 @@ func newV4LocalPayload(bytes []byte) t.Result[v4LocalPayload] {
 	var tag [32]byte
 	copy(tag[:], bytes[macOffset:])
 
-	return t.Ok(v4LocalPayload{nonce, cipherText, tag})
+	return result.Ok(v4LocalPayload{nonce, cipherText, tag})
 }

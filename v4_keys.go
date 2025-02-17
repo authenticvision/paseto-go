@@ -6,7 +6,7 @@ import (
 	"aidanwoods.dev/go-paseto/internal/encoding"
 	"aidanwoods.dev/go-paseto/internal/hashing"
 	"aidanwoods.dev/go-paseto/internal/random"
-	t "aidanwoods.dev/go-result"
+	"aidanwoods.dev/go-result/option"
 )
 
 // V4AsymmetricPublicKey v4 public public key
@@ -60,7 +60,7 @@ type V4AsymmetricSecretKey struct {
 // Public returns the corresponding public key for a secret key
 func (k V4AsymmetricSecretKey) Public() V4AsymmetricPublicKey {
 	return V4AsymmetricPublicKey{
-		material: t.Cast[ed25519.PublicKey](k.material.Public()).
+		material: option.Cast[ed25519.PublicKey](k.material.Public()).
 			Expect("should produce ed25519 public key"),
 	}
 }
@@ -84,10 +84,12 @@ func (k V4AsymmetricSecretKey) ExportSeedHex() string {
 // cryptography. Don't forget to export the public key for sharing, DO NOT share
 // this secret key.
 func NewV4AsymmetricSecretKey() V4AsymmetricSecretKey {
+	_, key, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		panic(err)
+	}
 	return V4AsymmetricSecretKey{
-		material: t.NewTupleResult(ed25519.GenerateKey(nil)).
-			Expect("CSPRNG should succeed").
-			Second,
+		material: key,
 	}
 }
 
@@ -106,9 +108,9 @@ func NewV4AsymmetricSecretKeyFromHex(hexEncoded string) (V4AsymmetricSecretKey, 
 func isEd25519KeyPairMalformed(privateKey []byte) bool {
 	seed := privateKey[:32]
 
-	pubKeyFromGiven := t.Cast[ed25519.PublicKey](ed25519.PrivateKey(privateKey).Public()).
+	pubKeyFromGiven := option.Cast[ed25519.PublicKey](ed25519.PrivateKey(privateKey).Public()).
 		Expect("should return ed25519 public key")
-	pubKeyFromSeed := t.Cast[ed25519.PublicKey](ed25519.NewKeyFromSeed(seed).Public()).
+	pubKeyFromSeed := option.Cast[ed25519.PublicKey](ed25519.NewKeyFromSeed(seed).Public()).
 		Expect("should return ed25519 public key")
 
 	return !pubKeyFromGiven.Equal(pubKeyFromSeed)

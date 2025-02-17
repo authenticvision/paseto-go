@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	t "aidanwoods.dev/go-result"
 )
 
 // Token is a set of paseto claims, and a footer
@@ -61,14 +59,14 @@ func NewTokenFromClaimsJSON(claimsData []byte, footer []byte) (*Token, error) {
 // be serialisable to JSON using encoding/json.
 // Set will check this and return an error if it is not serialisable.
 func (token *Token) Set(key string, value interface{}) error {
-	return t.Chain[any](
-		marshalTokenValue(value)).
-		AndThen(func(value json.RawMessage) t.Result[any] {
-			token.claims[key] = value
-			return t.Ok[any](nil)
-		}).
-		WrapErr("could not set key `" + key + "': %w").
-		UnwrapErrOr(nil)
+	tokenValue, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("could not set key `%s': %w", key, err)
+	}
+
+	token.claims[key] = tokenValue
+
+	return nil
 }
 
 // Get gets the given key and writes the value into output (which should be a
@@ -146,8 +144,10 @@ func (t Token) Claims() map[string]interface{} {
 func (token Token) ClaimsJSON() []byte {
 	// these were *just* unmarshalled (and a top level of string keys added)
 	// it is *very* unexpected if this is not reversable
-	data := t.NewResult(json.Marshal(token.claims)).
-		Expect("internal claims data should be well formed JSON")
+	data, err := json.Marshal(token.claims)
+	if err != nil {
+		panic(fmt.Errorf("internal claims data should be well formed JSON: %w", err))
+	}
 
 	return data
 }
@@ -210,12 +210,4 @@ func (t Token) V4Sign(key V4AsymmetricSecretKey, implicit []byte) string {
 // recovered.
 func (t Token) V4Encrypt(key V4SymmetricKey, implicit []byte) string {
 	return v4LocalEncrypt(t.packet(), key, implicit, nil).encoded()
-}
-
-func newTokenValue(bytes []byte) json.RawMessage {
-	return json.RawMessage(bytes)
-}
-
-func marshalTokenValue(value interface{}) t.Result[json.RawMessage] {
-	return t.Map(t.NewResult(json.Marshal(value)), newTokenValue)
 }

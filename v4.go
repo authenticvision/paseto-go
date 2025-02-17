@@ -7,7 +7,7 @@ import (
 	"aidanwoods.dev/go-paseto/internal/encoding"
 	"aidanwoods.dev/go-paseto/internal/hashing"
 	"aidanwoods.dev/go-paseto/internal/random"
-	t "aidanwoods.dev/go-result"
+	"aidanwoods.dev/go-result/result"
 	"golang.org/x/crypto/chacha20"
 )
 
@@ -28,10 +28,10 @@ func v4PublicSign(packet packet, key V4AsymmetricSecretKey, implicit []byte) mes
 	return newMessageFromPayloadAndFooter(v4PublicPayload{data, signature}, footer)
 }
 
-func v4PublicVerify(msg message, key V4AsymmetricPublicKey, implicit []byte) t.Result[packet] {
+func v4PublicVerify(msg message, key V4AsymmetricPublicKey, implicit []byte) result.Result[packet] {
 	payload, ok := msg.p.(v4PublicPayload)
 	if msg.header() != V4Public.Header() || !ok {
-		return t.Err[packet](errorMessageHeaderVerify(V4Public, msg.header()))
+		return result.Err[packet](errorMessageHeaderVerify(V4Public, msg.header()))
 	}
 
 	header, footer := []byte(msg.header()), msg.footer
@@ -40,10 +40,10 @@ func v4PublicVerify(msg message, key V4AsymmetricPublicKey, implicit []byte) t.R
 	m2 := encoding.Pae(header, data, footer, implicit)
 
 	if !ed25519.Verify(key.material, m2, payload.signature[:]) {
-		return t.Err[packet](errorBadSignature)
+		return result.Err[packet](errorBadSignature)
 	}
 
-	return t.Ok(packet{data, footer})
+	return result.Ok(packet{data, footer})
 }
 
 func v4LocalEncrypt(p packet, key V4SymmetricKey, implicit []byte, unitTestNonce []byte) message {
@@ -52,8 +52,10 @@ func v4LocalEncrypt(p packet, key V4SymmetricKey, implicit []byte, unitTestNonce
 
 	encKey, authKey, nonce2 := key.split(nonce)
 
-	cipher := t.NewResult(chacha20.NewUnauthenticatedCipher(encKey[:], nonce2[:])).
-		Expect("cipher should construct")
+	cipher, err := chacha20.NewUnauthenticatedCipher(encKey[:], nonce2[:])
+	if err != nil {
+		panic(err)
+	}
 
 	cipherText := make([]byte, len(p.content))
 	cipher.XORKeyStream(cipherText, p.content)
@@ -68,10 +70,10 @@ func v4LocalEncrypt(p packet, key V4SymmetricKey, implicit []byte, unitTestNonce
 	return newMessageFromPayloadAndFooter(v4LocalPayload{nonce, cipherText, tag}, p.footer)
 }
 
-func v4LocalDecrypt(msg message, key V4SymmetricKey, implicit []byte) t.Result[packet] {
+func v4LocalDecrypt(msg message, key V4SymmetricKey, implicit []byte) result.Result[packet] {
 	payload, ok := msg.p.(v4LocalPayload)
 	if msg.header() != V4Local.Header() || !ok {
-		return t.Err[packet](errorMessageHeaderDecrypt(V4Local, msg.header()))
+		return result.Err[packet](errorMessageHeaderDecrypt(V4Local, msg.header()))
 	}
 
 	nonce, cipherText, givenTag := payload.nonce, payload.cipherText, payload.tag
@@ -85,14 +87,16 @@ func v4LocalDecrypt(msg message, key V4SymmetricKey, implicit []byte) t.Result[p
 	hashing.GenericHash(preAuth, expectedTag[:], authKey[:])
 
 	if !hmac.Equal(expectedTag[:], givenTag[:]) {
-		return t.Err[packet](errorBadMAC)
+		return result.Err[packet](errorBadMAC)
 	}
 
-	cipher := t.NewResult(chacha20.NewUnauthenticatedCipher(encKey[:], nonce2[:])).
-		Expect("cipher should construct")
+	cipher, err := chacha20.NewUnauthenticatedCipher(encKey[:], nonce2[:])
+	if err != nil {
+		panic(err)
+	}
 
 	plainText := make([]byte, len(cipherText))
 	cipher.XORKeyStream(plainText, cipherText)
 
-	return t.Ok(packet{plainText, msg.footer})
+	return result.Ok(packet{plainText, msg.footer})
 }
