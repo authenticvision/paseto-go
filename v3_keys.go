@@ -10,7 +10,6 @@ import (
 
 	"aidanwoods.dev/go-paseto/internal/encoding"
 	"aidanwoods.dev/go-paseto/internal/random"
-	t "aidanwoods.dev/go-result"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -120,8 +119,10 @@ func paddedSecretBytes(private ecdsa.PrivateKey) []byte {
 // cryptography. Don't forget to export the public key for sharing, DO NOT share
 // this secret key.
 func NewV3AsymmetricSecretKey() V3AsymmetricSecretKey {
-	privateKey := t.NewResult(ecdsa.GenerateKey(elliptic.P384(), rand.Reader)).
-		Expect("CSPRNG should not fail")
+	privateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
 
 	return V3AsymmetricSecretKey{*privateKey}
 }
@@ -235,7 +236,9 @@ func (k V3SymmetricKey) split(nonce [32]byte) (encKey [32]byte, authKey [48]byte
 	)
 
 	var tmp [48]byte
-	t.NewResult(io.ReadFull(kdf, tmp[:])).Expect("hkdf should not fail")
+	if _, err := io.ReadFull(kdf, tmp[:]); err != nil {
+		panic(err)
+	}
 
 	copy(encKey[:], tmp[0:32])
 	copy(nonce2[:], tmp[32:48])
@@ -246,7 +249,9 @@ func (k V3SymmetricKey) split(nonce [32]byte) (encKey [32]byte, authKey [48]byte
 		nil,
 		append([]byte("paseto-auth-key-for-aead"), nonce[:]...),
 	)
-	t.NewResult(io.ReadFull(kdf, authKey[:])).Expect("hkdf should not fail")
+	if _, err := io.ReadFull(kdf, authKey[:]); err != nil {
+		panic(err)
+	}
 
 	return encKey, authKey, nonce2
 }

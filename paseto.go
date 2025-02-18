@@ -6,7 +6,7 @@ package paseto
 import (
 	"fmt"
 
-	t "aidanwoods.dev/go-result"
+	"aidanwoods.dev/go-result/result"
 )
 
 // Purpose represents either local or public paseto mode
@@ -107,36 +107,36 @@ func upcastPayload[P payload](p P) payload {
 	return p
 }
 
-func (p Protocol) newPayload(bytes []byte) t.Result[payload] {
+func (p Protocol) newPayload(bytes []byte) result.Result[payload] {
 	switch p.version {
 	default:
-		return t.Err[payload](unsupportedPasetoVersion)
+		return result.Err[payload](unsupportedPasetoVersion)
 	case Version2:
 		switch p.purpose {
 		default:
-			return t.Err[payload](unsupportedPasetoPurpose)
+			return result.Err[payload](unsupportedPasetoPurpose)
 		case Local:
-			return t.Map(newV2LocalPayload(bytes), upcastPayload[v2LocalPayload])
+			return result.Map(newV2LocalPayload(bytes), upcastPayload[v2LocalPayload])
 		case Public:
-			return t.Map(newV2PublicPayload(bytes), upcastPayload[v2PublicPayload])
+			return result.Map(newV2PublicPayload(bytes), upcastPayload[v2PublicPayload])
 		}
 	case Version3:
 		switch p.purpose {
 		default:
-			return t.Err[payload](unsupportedPasetoPurpose)
+			return result.Err[payload](unsupportedPasetoPurpose)
 		case Local:
-			return t.Map(newV3LocalPayload(bytes), upcastPayload[v3LocalPayload])
+			return result.Map(newV3LocalPayload(bytes), upcastPayload[v3LocalPayload])
 		case Public:
-			return t.Map(newV3PublicPayload(bytes), upcastPayload[v3PublicPayload])
+			return result.Map(newV3PublicPayload(bytes), upcastPayload[v3PublicPayload])
 		}
 	case Version4:
 		switch p.purpose {
 		default:
-			return t.Err[payload](unsupportedPasetoPurpose)
+			return result.Err[payload](unsupportedPasetoPurpose)
 		case Local:
-			return t.Map(newV4LocalPayload(bytes), upcastPayload[v4LocalPayload])
+			return result.Map(newV4LocalPayload(bytes), upcastPayload[v4LocalPayload])
 		case Public:
-			return t.Map(newV4PublicPayload(bytes), upcastPayload[v4PublicPayload])
+			return result.Map(newV4PublicPayload(bytes), upcastPayload[v4PublicPayload])
 		}
 	}
 }
@@ -145,22 +145,22 @@ type payload interface {
 	bytes() []byte
 }
 
-func protocolForPayload(payload payload) t.Result[Protocol] {
+func protocolForPayload(payload payload) result.Result[Protocol] {
 	switch payload.(type) {
 	default:
-		return t.Err[Protocol](unsupportedPayload)
+		return result.Err[Protocol](unsupportedPayload)
 	case v2LocalPayload:
-		return t.Ok(V2Local)
+		return result.Ok(V2Local)
 	case v2PublicPayload:
-		return t.Ok(V2Public)
+		return result.Ok(V2Public)
 	case v3LocalPayload:
-		return t.Ok(V3Local)
+		return result.Ok(V3Local)
 	case v3PublicPayload:
-		return t.Ok(V3Public)
+		return result.Ok(V3Public)
 	case v4LocalPayload:
-		return t.Ok(V4Local)
+		return result.Ok(V4Local)
 	case v4PublicPayload:
-		return t.Ok(V4Public)
+		return result.Ok(V4Public)
 	}
 }
 
@@ -173,6 +173,10 @@ func newPacket(content []byte, footer []byte) packet {
 	return packet{content, footer}
 }
 
-func (p packet) token() t.Result[Token] {
-	return t.NewPtrResult(NewTokenFromClaimsJSON(p.content, p.footer))
+func (p packet) token() result.Result[Token] {
+	if token, err := NewTokenFromClaimsJSON(p.content, p.footer); err != nil {
+		return result.Err[Token](err)
+	} else {
+		return result.Ok(*token)
+	}
 }

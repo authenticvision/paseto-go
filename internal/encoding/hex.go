@@ -3,7 +3,7 @@ package encoding
 import (
 	"encoding/hex"
 
-	t "aidanwoods.dev/go-result"
+	"aidanwoods.dev/go-result/result"
 )
 
 // Encode hex
@@ -12,6 +12,10 @@ func HexEncode(bytes []byte) string {
 }
 
 // Decode hex
-func HexDecode(encoded string) t.Result[[]byte] {
-	return t.NewResult(hex.DecodeString(encoded))
+func HexDecode(encoded string) result.Result[[]byte] {
+	if b, err := hex.DecodeString(encoded); err != nil {
+		return result.Err[[]byte](err)
+	} else {
+		return result.Ok(b)
+	}
 }
